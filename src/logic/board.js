@@ -80,3 +80,24 @@ export function shuffle(items) {
 
   return result;
 }
+
+export function shuffleRemainingTiles(tiles) {
+  const remainingTiles = shuffle(tiles.filter((tile) => !tile.removed));
+  let nextTileIndex = 0;
+
+  return tiles.map((tile) => {
+    if (tile.removed) {
+      return tile;
+    }
+
+    const nextTile = remainingTiles[nextTileIndex];
+    nextTileIndex += 1;
+
+    return {
+      ...nextTile,
+      index: tile.index,
+      row: tile.row,
+      column: tile.column,
+    };
+  });
+}
