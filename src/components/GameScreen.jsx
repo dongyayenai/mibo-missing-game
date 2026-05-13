@@ -3,7 +3,7 @@ import GameBoard from './GameBoard.jsx';
 import Modal from './Modal.jsx';
 import TopBar from './TopBar.jsx';
 import { playSound } from '../logic/audio.js';
-import { generateBoard, shuffleRemainingTiles } from '../logic/board.js';
+import { applyMovementRule, generateBoard, shuffleRemainingTiles } from '../logic/board.js';
 import { DIFFICULTY_PRESETS, formatSeconds } from '../logic/difficulty.js';
 import { findHint, hasAvailableMove } from '../logic/hint.js';
 import { levels } from '../logic/levels.js';
@@ -25,7 +25,7 @@ export default function GameScreen({
   const level = levels[currentLevelIndex];
   const isFinalLevel = currentLevelIndex === levels.length - 1;
   const difficulty = DIFFICULTY_PRESETS[selectedDifficulty] ?? DIFFICULTY_PRESETS.normal;
-  const [tiles, setTiles] = useState(() => generateBoard());
+  const [tiles, setTiles] = useState(() => generateBoard(levels[0]));
   const [timeRemaining, setTimeRemaining] = useState(difficulty.timeLimitSeconds);
   const [hintRemaining, setHintRemaining] = useState(difficulty.hintLimit);
   const [shuffleRemaining, setShuffleRemaining] = useState(difficulty.shuffleLimit);
@@ -135,7 +135,7 @@ export default function GameScreen({
 
   function resetLevelState(nextLevel, nextDifficulty = difficulty) {
     playSound('click', soundEnabled);
-    setTiles(generateBoard());
+    setTiles(generateBoard(nextLevel));
     setTimeRemaining(nextDifficulty.timeLimitSeconds);
     setHintRemaining(nextDifficulty.hintLimit);
     setShuffleRemaining(nextDifficulty.shuffleLimit);
@@ -241,18 +241,19 @@ export default function GameScreen({
         ? { ...item, removed: true }
         : item
     ));
+    const movedTiles = applyMovementRule(nextTiles, level.movementRule, level.rows, level.columns);
 
-    setTiles(nextTiles);
+    setTiles(movedTiles);
     playSound('match', soundEnabled);
     setSelectedTileId(null);
     setHighlightedTileIds([]);
     setInvalidTileIds([]);
-    if (nextTiles.every((item) => item.removed)) {
+    if (movedTiles.every((item) => item.removed)) {
       playSound('win', soundEnabled);
       setActiveModal('win');
       return;
     }
-    checkNoMove(nextTiles);
+    checkNoMove(movedTiles);
   }
 
   function handleHint() {

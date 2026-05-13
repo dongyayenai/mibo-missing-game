@@ -1,7 +1,13 @@
+import { useState } from 'react';
+
 export default function Tile({ tile, selected, highlighted, invalid, hidden, onClick }) {
+  const [imageMissing, setImageMissing] = useState(false);
+
   if (tile.removed) {
     return <div className="tile tile--empty" aria-hidden="true" />;
   }
+
+  const src = tile.src;
 
   return (
     <button
@@ -16,7 +22,20 @@ export default function Tile({ tile, selected, highlighted, invalid, hidden, onC
       disabled={hidden}
       onClick={onClick}
     >
-      {!hidden && <img src={tile.src} alt="" draggable="false" />}
+      {!hidden && !imageMissing && (
+        <img
+          src={src}
+          alt=""
+          draggable="false"
+          onError={() => {
+            console.error('Missing tile image:', src);
+            setImageMissing(true);
+          }}
+        />
+      )}
+      {!hidden && imageMissing && (
+        <span className="tile__missing">{tile.file}</span>
+      )}
     </button>
   );
 }

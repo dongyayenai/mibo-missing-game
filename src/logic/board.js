@@ -1,64 +1,74 @@
+import { TILE_IMAGES } from './tileAssets.js';
+
 export const BOARD_COLUMNS = 14;
 export const BOARD_ROWS = 10;
 export const BOARD_TILE_COUNT = BOARD_COLUMNS * BOARD_ROWS;
 
 const TILE_BASE_PATH = '/images/tiles';
 
-export const TILE_DISTRIBUTION = [
-  { file: '侦探咪宝.png', count: 6 },
-  { file: '咪宝抱树.png', count: 6 },
-  { file: '困困咪宝.png', count: 6 },
-  { file: '头绳.png', count: 6 },
-  { file: '开心咪宝.png', count: 6 },
-  { file: '毛线球.png', count: 6 },
-  { file: '潜水员咪宝.png', count: 6 },
-  { file: '猫爪.png', count: 6 },
-  { file: '猫爬架.png', count: 6 },
-  { file: '猫砂盆.png', count: 6 },
-  { file: '猫粮罐头.png', count: 6 },
-  { file: '猫罐头.png', count: 6 },
-  { file: '猫薄荷球.png', count: 6 },
-  { file: '玩具收纳.png', count: 6 },
-  { file: '玩水咪宝.png', count: 6 },
-  { file: '生气咪宝.png', count: 6 },
-  { file: '裹被子的咪宝.png', count: 6 },
-  { file: '躲盒子里的咪宝.png', count: 6 },
-  { file: '迷惑咪宝.png', count: 6 },
-  { file: '震惊咪宝.png', count: 6 },
-  { file: '面包趴咪宝.png', count: 6 },
-  { file: '鱼.png', count: 6 },
-  { file: '拍屁股的咪宝.png', count: 4 },
-  { file: '博士帽咪宝.png', count: 4 },
-];
-
-export function generateBoard(distribution = TILE_DISTRIBUTION) {
-  validateDistribution(distribution);
+export function generateBoard(level) {
+  const selectedImages = TILE_IMAGES.slice(0, level.tileSetSize);
+  const distribution = createTileDistribution(selectedImages);
+  validateDistribution(distribution, level.tileSetSize);
 
   const tiles = distribution.flatMap(({ file, count }) =>
     Array.from({ length: count }, (_, index) => ({
       id: `${file}-${index}`,
       name: file.replace('.png', ''),
       file,
-      src: `${TILE_BASE_PATH}/${encodeURIComponent(file)}`,
+      src: `${TILE_BASE_PATH}/${file}`,
       removed: false,
     })),
   );
 
-  return shuffle(tiles).map((tile, index) => ({
+  const generatedTiles = shuffle(tiles).map((tile, index) => ({
     ...tile,
     id: `${tile.id}-${index}`,
     index,
     row: Math.floor(index / BOARD_COLUMNS),
     column: index % BOARD_COLUMNS,
   }));
+
+  console.log('Generating board', {
+    levelLabel: level.levelLabel,
+    title: level.title,
+    tileSetSize: level.tileSetSize,
+    actualTileImageCount: selectedImages.length,
+    totalTiles: generatedTiles.length,
+    totalNonEmptyTileCount: generatedTiles.filter((tile) => !tile.removed).length,
+  });
+  console.table(distribution.map(({ file, count }) => ({
+    file,
+    count,
+  })));
+
+  return generatedTiles;
 }
 
-export function validateDistribution(distribution) {
+export function createTileDistribution(selectedImages) {
+  if (selectedImages.length === 24) {
+    return selectedImages.map((file, index) => ({
+      file,
+      count: index < 22 ? 6 : 4,
+    }));
+  }
+
+  if (selectedImages.length === 28) {
+    return selectedImages.map((file, index) => ({
+      file,
+      count: index < 14 ? 6 : 4,
+    }));
+  }
+
+  throw new Error(`Unsupported tile set size: ${selectedImages.length}.`);
+}
+
+export function validateDistribution(distribution, expectedImageCount) {
   const totalTiles = distribution.reduce((sum, tile) => sum + tile.count, 0);
   const hasOddCount = distribution.some((tile) => tile.count % 2 !== 0);
 
-  if (distribution.length !== 24) {
-    throw new Error(`Expected 24 tile images, received ${distribution.length}.`);
+  if (distribution.length !== expectedImageCount) {
+    throw new Error(`Expected ${expectedImageCount} tile images, received ${distribution.length}.`);
   }
 
   if (totalTiles !== BOARD_TILE_COUNT) {
@@ -100,4 +110,143 @@ export function shuffleRemainingTiles(tiles) {
       column: tile.column,
     };
   });
+}
+
+export function applyMovementRule(board, movementRule, rows = BOARD_ROWS, columns = BOARD_COLUMNS) {
+  if (movementRule === 'none') {
+    return board.map((tile) => ({ ...tile }));
+  }
+
+  if (movementRule === 'splitUpDown') {
+    return splitUpDown(board, rows, columns);
+  }
+
+  if (movementRule === 'splitLeftRight') {
+    return splitLeftRight(board, rows, columns);
+  }
+
+  if (movementRule === 'gravityDown') {
+    return gravityDown(board, rows, columns);
+  }
+
+  return board.map((tile) => ({ ...tile }));
+}
+
+// Top half tiles move upward per column; bottom half tiles move downward.
+// Relative order is preserved, leaving empty cells gathered near the middle.
+function splitUpDown(board, rows, columns) {
+  const topEnd = Math.floor(rows / 2) - 1;
+  const bottomStart = topEnd + 1;
+  const nextBoard = createEmptyBoard(rows, columns);
+
+  for (let column = 0; column < columns; column += 1) {
+    const topTiles = collectTiles(board, 0, topEnd, column, column, columns);
+    const bottomTiles = collectTiles(board, bottomStart, rows - 1, column, column, columns);
+
+    placeTiles(nextBoard, topTiles, topTiles.map((_, offset) => ({
+      row: offset,
+      column,
+    })), columns);
+
+    placeTiles(nextBoard, bottomTiles, bottomTiles.map((_, offset) => ({
+      row: rows - bottomTiles.length + offset,
+      column,
+    })), columns);
+  }
+
+  return nextBoard;
+}
+
+// Left half tiles move left per row; right half tiles move right.
+// Relative order is preserved, leaving empty cells gathered near the middle.
+function splitLeftRight(board, rows, columns) {
+  const leftEnd = Math.floor(columns / 2) - 1;
+  const rightStart = leftEnd + 1;
+  const nextBoard = createEmptyBoard(rows, columns);
+
+  for (let row = 0; row < rows; row += 1) {
+    const leftTiles = collectTiles(board, row, row, 0, leftEnd, columns);
+    const rightTiles = collectTiles(board, row, row, rightStart, columns - 1, columns);
+
+    placeTiles(nextBoard, leftTiles, leftTiles.map((_, offset) => ({
+      row,
+      column: offset,
+    })), columns);
+
+    placeTiles(nextBoard, rightTiles, rightTiles.map((_, offset) => ({
+      row,
+      column: columns - rightTiles.length + offset,
+    })), columns);
+  }
+
+  return nextBoard;
+}
+
+// Gravity moves remaining tiles downward in each column.
+// Relative top-to-bottom order is preserved, leaving empty cells at the top.
+function gravityDown(board, rows, columns) {
+  const nextBoard = createEmptyBoard(rows, columns);
+
+  for (let column = 0; column < columns; column += 1) {
+    const columnTiles = collectTiles(board, 0, rows - 1, column, column, columns);
+
+    placeTiles(nextBoard, columnTiles, columnTiles.map((_, offset) => ({
+      row: rows - columnTiles.length + offset,
+      column,
+    })), columns);
+  }
+
+  return nextBoard;
+}
+
+function collectTiles(board, startRow, endRow, startColumn, endColumn, columns) {
+  const tiles = [];
+
+  for (let row = startRow; row <= endRow; row += 1) {
+    for (let column = startColumn; column <= endColumn; column += 1) {
+      const tile = board[getIndex(row, column, columns)];
+
+      if (tile && !tile.removed) {
+        tiles.push(tile);
+      }
+    }
+  }
+
+  return tiles;
+}
+
+function placeTiles(nextBoard, tiles, positions, columns) {
+  tiles.forEach((tile, tileIndex) => {
+    const position = positions[tileIndex];
+    const index = getIndex(position.row, position.column, columns);
+
+    nextBoard[index] = moveTileToPosition(tile, position.row, position.column, columns);
+  });
+}
+
+function createEmptyBoard(rows, columns) {
+  return Array.from({ length: rows * columns }, (_, index) => ({
+    id: `empty-${index}`,
+    name: '',
+    file: '',
+    src: '',
+    removed: true,
+    index,
+    row: Math.floor(index / columns),
+    column: index % columns,
+  }));
+}
+
+function moveTileToPosition(tile, row, column, columns) {
+  return {
+    ...tile,
+    removed: false,
+    index: getIndex(row, column, columns),
+    row,
+    column,
+  };
+}
+
+function getIndex(row, column, columns) {
+  return row * columns + column;
 }
