@@ -3,6 +3,7 @@ export default function Modal({
   title,
   message,
   rewardIcon,
+  children,
   actions = [{ label: '好', onClick: undefined }],
   onClose,
 }) {
@@ -11,7 +12,14 @@ export default function Modal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClose?.();
+      }}
+    >
       <section
         className={rewardIcon ? 'modal modal--win' : 'modal'}
         role="dialog"
@@ -26,6 +34,7 @@ export default function Modal({
         )}
         <h2 id="modal-title">{title}</h2>
         <p>{message}</p>
+        {children}
         <div className="modal__actions">
           {actions.map((action) => (
             <button

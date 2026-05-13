@@ -275,6 +275,13 @@ button {
   pointer-events: auto;
 }
 
+.modal--difficulty {
+  width: min(520px, calc(100vw - 40px));
+  border: 1px solid rgba(91, 74, 47, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 250, 226, 0.98);
+}
+
 .modal--win {
   width: min(430px, 100%);
   padding: 30px 28px 28px;
@@ -333,6 +340,45 @@ button {
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.difficulty-selector {
+  margin: 18px 0 22px;
+}
+
+.difficulty-options {
+  display: grid;
+  gap: 10px;
+}
+
+.difficulty-option {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid rgba(91, 74, 47, 0.12);
+  border-radius: 18px;
+  background: #fff7d6;
+  color: #5b4a2f;
+  text-align: left;
+  box-shadow: 0 5px 14px rgba(120, 90, 30, 0.1);
+}
+
+.difficulty-option--selected {
+  border-color: rgba(245, 195, 80, 0.85);
+  background: #fff0bd;
+  box-shadow: 0 0 0 4px rgba(79, 95, 34, 0.12), 0 8px 18px rgba(120, 90, 30, 0.14);
+}
+
+.difficulty-option__label {
+  color: #4f5f22;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.difficulty-option__meta {
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .modal--win .primary-button {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import HomeScreen from './components/HomeScreen.jsx';
 import GameScreen from './components/GameScreen.jsx';
+import { DIFFICULTY_PRESETS } from './logic/difficulty.js';
 
 const SCREENS = {
   HOME: 'home',
@@ -9,10 +10,22 @@ const SCREENS = {
 
 export default function App() {
   const [screen, setScreen] = useState(SCREENS.HOME);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(DIFFICULTY_PRESETS.normal.id);
 
   if (screen === SCREENS.GAME) {
-    return <GameScreen onBackHome={() => setScreen(SCREENS.HOME)} />;
+    return (
+      <GameScreen
+        selectedDifficulty={selectedDifficulty}
+        onBackHome={() => setScreen(SCREENS.HOME)}
+      />
+    );
   }
 
-  return <HomeScreen onStart={() => setScreen(SCREENS.GAME)} />;
+  return (
+    <HomeScreen
+      selectedDifficulty={selectedDifficulty}
+      onDifficultyChange={setSelectedDifficulty}
+      onStart={() => setScreen(SCREENS.GAME)}
+    />
+  );
 }

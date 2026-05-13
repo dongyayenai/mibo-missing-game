@@ -4,18 +4,15 @@ import Modal from './Modal.jsx';
 import TopBar from './TopBar.jsx';
 import { playSound } from '../logic/audio.js';
 import { generateBoard, shuffleRemainingTiles } from '../logic/board.js';
+import { DIFFICULTY_PRESETS, formatSeconds } from '../logic/difficulty.js';
 import { findHint, hasAvailableMove } from '../logic/hint.js';
 import { levels } from '../logic/levels.js';
 import { findPath } from '../logic/pathFinding.js';
 
-function formatTime(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-
-  return `${minutes}:${seconds}`;
-}
-
-export default function GameScreen({ onBackHome }) {
+export default function GameScreen({
+  selectedDifficulty,
+  onBackHome,
+}) {
   const [activeModal, setActiveModal] = useState(null);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [message, setMessage] = useState('');
@@ -27,10 +24,11 @@ export default function GameScreen({ onBackHome }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const level = levels[currentLevelIndex];
   const isFinalLevel = currentLevelIndex === levels.length - 1;
+  const difficulty = DIFFICULTY_PRESETS[selectedDifficulty] ?? DIFFICULTY_PRESETS.normal;
   const [tiles, setTiles] = useState(() => generateBoard());
-  const [timeRemaining, setTimeRemaining] = useState(level.timeLimitSeconds);
-  const [hintRemaining, setHintRemaining] = useState(level.hintLimit);
-  const [shuffleRemaining, setShuffleRemaining] = useState(level.shuffleLimit);
+  const [timeRemaining, setTimeRemaining] = useState(difficulty.timeLimitSeconds);
+  const [hintRemaining, setHintRemaining] = useState(difficulty.hintLimit);
+  const [shuffleRemaining, setShuffleRemaining] = useState(difficulty.shuffleLimit);
 
   const modalConfig = useMemo(() => {
     if (activeModal === 'time-over') {
@@ -86,18 +84,26 @@ export default function GameScreen({ onBackHome }) {
             setIsPaused(false);
             setActiveModal(null);
           } },
-          { label: '重新开始', onClick: () => restartLevel() },
-          { label: '回到首页', onClick: () => returnHome() },
-          { label: `声音：${soundEnabled ? '开' : '关'}`, onClick: () => {
+          { label: `音效：${soundEnabled ? '开' : '关'}`, onClick: () => {
             playSound('click', soundEnabled);
             setSoundEnabled((current) => !current);
           } },
+          { label: '重新开始', onClick: () => restartLevel() },
+          { label: '回到首页', onClick: () => returnHome() },
         ],
       };
     }
 
     return null;
-  }, [activeModal, currentLevelIndex, isFinalLevel, level, onBackHome, soundEnabled]);
+  }, [
+    activeModal,
+    currentLevelIndex,
+    isFinalLevel,
+    level,
+    onBackHome,
+    selectedDifficulty,
+    soundEnabled,
+  ]);
 
   useEffect(() => {
     if (isPaused || activeModal || timeRemaining <= 0) {
@@ -127,12 +133,12 @@ export default function GameScreen({ onBackHome }) {
     return () => window.clearTimeout(timeoutId);
   }, [message]);
 
-  function resetLevelState(nextLevel) {
+  function resetLevelState(nextLevel, nextDifficulty = difficulty) {
     playSound('click', soundEnabled);
     setTiles(generateBoard());
-    setTimeRemaining(nextLevel.timeLimitSeconds);
-    setHintRemaining(nextLevel.hintLimit);
-    setShuffleRemaining(nextLevel.shuffleLimit);
+    setTimeRemaining(nextDifficulty.timeLimitSeconds);
+    setHintRemaining(nextDifficulty.hintLimit);
+    setShuffleRemaining(nextDifficulty.shuffleLimit);
     setSelectedTileId(null);
     setHighlightedTileIds([]);
     setInvalidTileIds([]);
@@ -143,12 +149,14 @@ export default function GameScreen({ onBackHome }) {
   }
 
   function restartLevel() {
-    resetLevelState(level);
+    const nextDifficulty = DIFFICULTY_PRESETS[selectedDifficulty] ?? DIFFICULTY_PRESETS.normal;
+    resetLevelState(level, nextDifficulty);
   }
 
   function startLevel(nextLevelIndex) {
+    const nextDifficulty = DIFFICULTY_PRESETS[selectedDifficulty] ?? DIFFICULTY_PRESETS.normal;
     setCurrentLevelIndex(nextLevelIndex);
-    resetLevelState(levels[nextLevelIndex]);
+    resetLevelState(levels[nextLevelIndex], nextDifficulty);
   }
 
   function pauseGame() {
@@ -298,7 +306,7 @@ export default function GameScreen({ onBackHome }) {
     <main className="screen game-screen">
       <TopBar
         level={level}
-        timeLabel={formatTime(timeRemaining)}
+        timeLabel={formatSeconds(timeRemaining)}
         hintRemaining={hintRemaining}
         shuffleRemaining={shuffleRemaining}
         actionsDisabled={isPaused}
@@ -328,7 +336,9 @@ export default function GameScreen({ onBackHome }) {
           rewardIcon={modalConfig.rewardIcon}
           actions={modalConfig.actions}
           onClose={modalConfig.onClose}
-        />
+        >
+          {modalConfig.content}
+        </Modal>
       )}
     </main>
   );
