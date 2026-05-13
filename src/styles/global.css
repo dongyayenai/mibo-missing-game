@@ -82,12 +82,14 @@ button {
 }
 
 .game-stage {
-  --board-left: 16.4%;
-  --board-top: 16%;
-  --board-width: 68.8%;
-  --board-height: 70%;
+  --board-left: 15.9%;
+  --board-top: 13%;
+  --board-width: 70.6%;
+  --board-height: 71.8%;
   --tile-row-gap: 0px;
   --tile-col-gap: 0px;
+  --tile-padding: 1px;
+  --tile-image-size: 98%;
   position: relative;
   height: 100vh;
   width: calc(100vh * 4 / 3);
@@ -200,6 +202,11 @@ button {
   overflow: visible;
 }
 
+.board-stage--orientation-blocked {
+  pointer-events: none;
+  opacity: 0.18;
+}
+
 .board-pause-overlay {
   position: absolute;
   inset: 0;
@@ -238,7 +245,7 @@ button {
   min-width: 0;
   min-height: 0;
   margin: 0;
-  padding: clamp(2px, 0.35vw, 4px);
+  padding: var(--tile-padding);
   border: 2px solid rgba(94, 59, 25, 0.16);
   border-radius: 8px;
   background: #fff8dc;
@@ -288,8 +295,8 @@ button {
 
 .tile img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: var(--tile-image-size);
+  height: var(--tile-image-size);
   object-fit: contain;
   user-select: none;
 }
@@ -323,6 +330,51 @@ button {
   font-weight: 800;
   text-align: center;
   box-shadow: 0 8px 20px rgba(69, 49, 23, 0.12);
+}
+
+.orientation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 240, 189, 0.92), transparent 34%),
+    rgba(238, 246, 222, 0.96);
+  color: #4f5f22;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.orientation-overlay__content {
+  width: min(420px, 100%);
+  padding: 30px 24px;
+  border: 1px solid rgba(91, 74, 47, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 250, 226, 0.96);
+  box-shadow: 0 22px 54px rgba(65, 46, 24, 0.18);
+}
+
+.orientation-overlay__icon {
+  margin-bottom: 10px;
+  font-size: clamp(42px, 14vw, 72px);
+  line-height: 1;
+}
+
+.orientation-overlay h2 {
+  margin: 0 0 12px;
+  color: #4f5f22;
+  font-size: clamp(30px, 8vw, 46px);
+  line-height: 1.12;
+}
+
+.orientation-overlay p {
+  margin: 0;
+  color: #5b4a2f;
+  font-size: clamp(18px, 4.8vw, 24px);
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .modal-backdrop {

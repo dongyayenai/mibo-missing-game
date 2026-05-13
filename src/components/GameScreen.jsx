@@ -9,6 +9,14 @@ import { findHint, hasAvailableMove } from '../logic/hint.js';
 import { levels } from '../logic/levels.js';
 import { findPath } from '../logic/pathFinding.js';
 
+function isPortraitViewport() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.matchMedia('(orientation: portrait)').matches;
+}
+
 export default function GameScreen({
   selectedDifficulty,
   soundEnabled,
@@ -23,6 +31,7 @@ export default function GameScreen({
   const [invalidTileIds, setInvalidTileIds] = useState([]);
   const [timeOverAcknowledged, setTimeOverAcknowledged] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(() => isPortraitViewport());
   const level = levels[currentLevelIndex];
   const isFinalLevel = currentLevelIndex === levels.length - 1;
   const difficulty = DIFFICULTY_PRESETS[selectedDifficulty] ?? DIFFICULTY_PRESETS.normal;
@@ -109,7 +118,7 @@ export default function GameScreen({
   ]);
 
   useEffect(() => {
-    if (isPaused || activeModal || timeRemaining <= 0) {
+    if (isPaused || isPortrait || activeModal || timeRemaining <= 0) {
       return undefined;
     }
 
@@ -118,7 +127,24 @@ export default function GameScreen({
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, [activeModal, isPaused, timeRemaining]);
+  }, [activeModal, isPaused, isPortrait, timeRemaining]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(orientation: portrait)');
+    const updateOrientation = () => {
+      setIsPortrait(mediaQuery.matches);
+    };
+
+    updateOrientation();
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', updateOrientation);
+      return () => mediaQuery.removeEventListener('change', updateOrientation);
+    }
+
+    mediaQuery.addListener(updateOrientation);
+    return () => mediaQuery.removeListener(updateOrientation);
+  }, []);
 
   useEffect(() => {
     if (timeRemaining === 0 && !activeModal && !timeOverAcknowledged) {
@@ -195,7 +221,7 @@ export default function GameScreen({
   }
 
   function handleTileClick(tile) {
-    if (isPaused || tile.removed || activeModal) {
+    if (isPaused || isPortrait || tile.removed || activeModal) {
       return;
     }
 
@@ -250,7 +276,7 @@ export default function GameScreen({
   }
 
   function handleHint() {
-    if (isPaused) {
+    if (isPaused || isPortrait) {
       return;
     }
 
@@ -279,7 +305,7 @@ export default function GameScreen({
   }
 
   function handleShuffle() {
-    if (isPaused) {
+    if (isPaused || isPortrait) {
       return;
     }
 
@@ -310,13 +336,19 @@ export default function GameScreen({
           timeLabel={formatSeconds(timeRemaining)}
           hintRemaining={hintRemaining}
           shuffleRemaining={shuffleRemaining}
-          actionsDisabled={isPaused}
+          actionsDisabled={isPaused || isPortrait}
           onHint={handleHint}
           onShuffle={handleShuffle}
           onSettings={pauseGame}
         />
         {message && <div className="game-message" role="status">{message}</div>}
-        <section className="board-stage" aria-label="游戏棋盘">
+        <section
+          className={['board-stage', isPortrait ? 'board-stage--orientation-blocked' : '']
+            .filter(Boolean)
+            .join(' ')}
+          aria-label="游戏棋盘"
+          aria-hidden={isPortrait}
+        >
           <GameBoard
             tiles={tiles}
             rows={level.rows}
@@ -324,11 +356,20 @@ export default function GameScreen({
             selectedTileId={selectedTileId}
             highlightedTileIds={highlightedTileIds}
             invalidTileIds={invalidTileIds}
-            isPaused={isPaused}
+            isPaused={isPaused || isPortrait}
             onTileClick={handleTileClick}
           />
           {isPaused && <div className="board-pause-overlay">暂停中</div>}
         </section>
+        {isPortrait && (
+          <div className="orientation-overlay" role="status" aria-live="polite">
+            <div className="orientation-overlay__content">
+              <div className="orientation-overlay__icon" aria-hidden="true">🐾</div>
+              <h2>请横屏游玩</h2>
+              <p>咪宝藏得有点多，把 iPad 横过来会更舒服哦。</p>
+            </div>
+          </div>
+        )}
         <div className="small-screen-message">
           这一关咪宝藏得有点多，用 iPad 或横屏玩会更舒服哦。
         </div>
