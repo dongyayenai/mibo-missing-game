@@ -1,6 +1,6 @@
 const AUDIO_VOLUME = 0.35;
 
-const SOUND_FILES = {
+export const SOUND_FILES = {
   click: '/audio/click.mp3',
   match: '/audio/match.mp3',
   wrong: '/audio/wrong.mp3',

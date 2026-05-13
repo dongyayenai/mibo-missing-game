@@ -1,6 +1,29 @@
 import { useState } from 'react';
 import DifficultySelector from './DifficultySelector.jsx';
-import { playSound } from '../logic/audio.js';
+import { playSound, SOUND_FILES } from '../logic/audio.js';
+import { preloadAudio, preloadImages } from '../logic/preload.js';
+import { TILE_IMAGES } from '../logic/tileAssets.js';
+
+const PRELOAD_TIMEOUT_MS = 1500;
+const GAME_BACKGROUND_URL = '/images/backgrounds/game.png';
+const TILE_URLS = TILE_IMAGES.map((file) => `/images/tiles/${file}`);
+const AUDIO_URLS = Object.values(SOUND_FILES);
+
+function waitForImagesWithTimeout() {
+  const preloadTask = preloadImages([
+    GAME_BACKGROUND_URL,
+    ...TILE_URLS,
+  ]);
+  const timeoutTask = new Promise((resolve) => {
+    window.setTimeout(resolve, PRELOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([preloadTask, timeoutTask]);
+}
+
+function preloadSounds() {
+  void preloadAudio(AUDIO_URLS);
+}
 
 export default function HomeScreen({
   selectedDifficulty,
@@ -9,9 +32,11 @@ export default function HomeScreen({
   onStart,
 }) {
   const [difficultyModalOpen, setDifficultyModalOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const openDifficultyModal = () => {
     playSound('click', soundEnabled);
+    preloadSounds();
     setDifficultyModalOpen(true);
   };
 
@@ -20,8 +45,20 @@ export default function HomeScreen({
     onDifficultyChange(difficulty);
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    if (isStarting) {
+      return;
+    }
+
+    setIsStarting(true);
     playSound('click', soundEnabled);
+    preloadSounds();
+    console.log('Preload started');
+    await waitForImagesWithTimeout();
+    console.log('Image preload finished or timed out');
+    setIsStarting(false);
+    console.log('Loading cleared');
+    console.log('Starting Level 1');
     onStart();
   };
 
@@ -61,8 +98,13 @@ export default function HomeScreen({
               onSelectDifficulty={handleDifficultyChange}
             />
             <div className="modal__actions">
-              <button className="primary-button" type="button" onClick={handleStart}>
-                开始寻找
+              <button
+                className="primary-button"
+                type="button"
+                disabled={isStarting}
+                onClick={handleStart}
+              >
+                {isStarting ? '咪宝正在藏起来……' : '开始寻找'}
               </button>
             </div>
           </section>

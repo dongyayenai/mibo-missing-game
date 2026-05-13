@@ -28,7 +28,7 @@ export default function Tile({ tile, selected, highlighted, invalid, hidden, onC
           alt=""
           draggable="false"
           onError={() => {
-            console.error('Missing tile image:', src);
+            console.error('Tile image failed to render:', src);
             setImageMissing(true);
           }}
         />

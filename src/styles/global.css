@@ -64,6 +64,11 @@ button {
   box-shadow: 0 3px 0 #c98828, 0 8px 14px rgba(61, 42, 20, 0.18);
 }
 
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.82;
+}
+
 .game-screen {
   width: 100vw;
   height: 100vh;
