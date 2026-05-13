@@ -1,14 +1,29 @@
 import { useState } from 'react';
 import DifficultySelector from './DifficultySelector.jsx';
+import { playSound } from '../logic/audio.js';
 
 export default function HomeScreen({
   selectedDifficulty,
+  soundEnabled,
   onDifficultyChange,
   onStart,
 }) {
   const [difficultyModalOpen, setDifficultyModalOpen] = useState(false);
 
-  const openDifficultyModal = () => setDifficultyModalOpen(true);
+  const openDifficultyModal = () => {
+    playSound('click', soundEnabled);
+    setDifficultyModalOpen(true);
+  };
+
+  const handleDifficultyChange = (difficulty) => {
+    playSound('click', soundEnabled);
+    onDifficultyChange(difficulty);
+  };
+
+  const handleStart = () => {
+    playSound('click', soundEnabled);
+    onStart();
+  };
 
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -43,10 +58,10 @@ export default function HomeScreen({
             <p>先决定今天怎么找咪宝吧。</p>
             <DifficultySelector
               selectedDifficulty={selectedDifficulty}
-              onSelectDifficulty={onDifficultyChange}
+              onSelectDifficulty={handleDifficultyChange}
             />
             <div className="modal__actions">
-              <button className="primary-button" type="button" onClick={onStart}>
+              <button className="primary-button" type="button" onClick={handleStart}>
                 开始寻找
               </button>
             </div>

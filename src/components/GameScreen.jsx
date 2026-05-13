@@ -11,6 +11,8 @@ import { findPath } from '../logic/pathFinding.js';
 
 export default function GameScreen({
   selectedDifficulty,
+  soundEnabled,
+  onSoundEnabledChange,
   onBackHome,
 }) {
   const [activeModal, setActiveModal] = useState(null);
@@ -21,7 +23,6 @@ export default function GameScreen({
   const [invalidTileIds, setInvalidTileIds] = useState([]);
   const [timeOverAcknowledged, setTimeOverAcknowledged] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const level = levels[currentLevelIndex];
   const isFinalLevel = currentLevelIndex === levels.length - 1;
   const difficulty = DIFFICULTY_PRESETS[selectedDifficulty] ?? DIFFICULTY_PRESETS.normal;
@@ -48,8 +49,8 @@ export default function GameScreen({
 
     if (activeModal === 'game-over') {
       return {
-        title: '没有路可以找到咪宝啦',
-        message: '咪宝又躲起来了，再找一次吧？',
+        title: '没有可以找到的咪宝了',
+        message: '没有可以连接的咪宝，也没有洗牌次数啦。再找一次吧？',
         actions: [
           { label: '重新开始', onClick: () => restartLevel() },
           { label: '回到首页', onClick: () => returnHome() },
@@ -59,13 +60,14 @@ export default function GameScreen({
 
     if (activeModal === 'win') {
       return {
-        title: level.winTitle,
-        message: level.winMessage,
-        rewardIcon: level.rewardIcon,
+        title: isFinalLevel ? '找到咪宝啦！' : level.winTitle,
+        message: isFinalLevel ? '咪宝终于出来啦！\n今天也辛苦你啦 🐾' : level.winMessage,
+        rewardIcon: isFinalLevel ? '开心咪宝.png' : level.rewardIcon,
+        variant: isFinalLevel ? 'final-win' : 'win',
         actions: isFinalLevel
           ? [
-            { label: '回到首页', onClick: () => returnHome() },
             { label: '再玩一次', onClick: () => restartLevel() },
+            { label: '回到首页', onClick: () => returnHome() },
           ]
           : [
             { label: '下一关', onClick: () => startLevel(currentLevelIndex + 1) },
@@ -86,7 +88,7 @@ export default function GameScreen({
           } },
           { label: `音效：${soundEnabled ? '开' : '关'}`, onClick: () => {
             playSound('click', soundEnabled);
-            setSoundEnabled((current) => !current);
+            onSoundEnabledChange((current) => !current);
           } },
           { label: '重新开始', onClick: () => restartLevel() },
           { label: '回到首页', onClick: () => returnHome() },
@@ -101,6 +103,7 @@ export default function GameScreen({
     isFinalLevel,
     level,
     onBackHome,
+    onSoundEnabledChange,
     selectedDifficulty,
     soundEnabled,
   ]);
@@ -184,16 +187,6 @@ export default function GameScreen({
     }
 
     if (nextShuffleRemaining > 0) {
-      const shuffledTiles = shuffleRemainingTiles(nextTiles);
-      playSound('shuffle', soundEnabled);
-      setTiles(shuffledTiles);
-      setShuffleRemaining(nextShuffleRemaining - 1);
-      setMessage('咪宝们换了个位置');
-
-      if (!hasAvailableMove(shuffledTiles, level.rows, level.columns)) {
-        checkNoMove(shuffledTiles, nextShuffleRemaining - 1);
-      }
-
       return;
     }
 
@@ -249,7 +242,7 @@ export default function GameScreen({
     setHighlightedTileIds([]);
     setInvalidTileIds([]);
     if (movedTiles.every((item) => item.removed)) {
-      playSound('win', soundEnabled);
+      playSound(isFinalLevel ? 'finalWin' : 'win', soundEnabled);
       setActiveModal('win');
       return;
     }
@@ -270,6 +263,11 @@ export default function GameScreen({
     const hint = findHint(tiles, level.rows, level.columns);
 
     if (!hint) {
+      if (shuffleRemaining > 0) {
+        setMessage('可以试试洗牌');
+        return;
+      }
+
       checkNoMove(tiles);
       return;
     }
@@ -305,36 +303,43 @@ export default function GameScreen({
 
   return (
     <main className="screen game-screen">
-      <TopBar
-        level={level}
-        timeLabel={formatSeconds(timeRemaining)}
-        hintRemaining={hintRemaining}
-        shuffleRemaining={shuffleRemaining}
-        actionsDisabled={isPaused}
-        onHint={handleHint}
-        onShuffle={handleShuffle}
-        onSettings={pauseGame}
-      />
-      {message && <div className="game-message" role="status">{message}</div>}
-      <section className="game-stage" aria-label="游戏棋盘">
-        <GameBoard
-          tiles={tiles}
-          rows={level.rows}
-          columns={level.columns}
-          selectedTileId={selectedTileId}
-          highlightedTileIds={highlightedTileIds}
-          invalidTileIds={invalidTileIds}
-          isPaused={isPaused}
-          onTileClick={handleTileClick}
+      <div className="game-stage">
+        <img className="game-bg" src="/images/backgrounds/game.png" alt="" draggable="false" />
+        <TopBar
+          level={level}
+          timeLabel={formatSeconds(timeRemaining)}
+          hintRemaining={hintRemaining}
+          shuffleRemaining={shuffleRemaining}
+          actionsDisabled={isPaused}
+          onHint={handleHint}
+          onShuffle={handleShuffle}
+          onSettings={pauseGame}
         />
-        {isPaused && <div className="board-pause-overlay">暂停中</div>}
-      </section>
+        {message && <div className="game-message" role="status">{message}</div>}
+        <section className="board-stage" aria-label="游戏棋盘">
+          <GameBoard
+            tiles={tiles}
+            rows={level.rows}
+            columns={level.columns}
+            selectedTileId={selectedTileId}
+            highlightedTileIds={highlightedTileIds}
+            invalidTileIds={invalidTileIds}
+            isPaused={isPaused}
+            onTileClick={handleTileClick}
+          />
+          {isPaused && <div className="board-pause-overlay">暂停中</div>}
+        </section>
+        <div className="small-screen-message">
+          这一关咪宝藏得有点多，用 iPad 或横屏玩会更舒服哦。
+        </div>
+      </div>
       {modalConfig && (
         <Modal
           open={Boolean(modalConfig)}
           title={modalConfig.title}
           message={modalConfig.message}
           rewardIcon={modalConfig.rewardIcon}
+          variant={modalConfig.variant}
           actions={modalConfig.actions}
           onClose={modalConfig.onClose}
         >

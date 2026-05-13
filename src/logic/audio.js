@@ -7,6 +7,7 @@ const SOUND_FILES = {
   shuffle: '/audio/shuffle.mp3',
   hint: '/audio/hint.mp3',
   win: '/audio/win.mp3',
+  finalWin: '/audio/final-win.mp3',
   gameOver: '/audio/game-over.mp3',
 };
 

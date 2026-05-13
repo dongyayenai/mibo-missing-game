@@ -3,6 +3,7 @@ export default function Modal({
   title,
   message,
   rewardIcon,
+  variant,
   children,
   actions = [{ label: '好', onClick: undefined }],
   onClose,
@@ -21,12 +22,25 @@ export default function Modal({
       }}
     >
       <section
-        className={rewardIcon ? 'modal modal--win' : 'modal'}
+        className={[
+          'modal',
+          rewardIcon ? 'modal--win' : '',
+          variant === 'final-win' ? 'modal--final-win' : '',
+        ].filter(Boolean).join(' ')}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
         onClick={(event) => event.stopPropagation()}
       >
+        {variant === 'final-win' && (
+          <div className="final-celebration" aria-hidden="true">
+            <span>★</span>
+            <span>🐾</span>
+            <span>✦</span>
+            <span>🐾</span>
+            <span>★</span>
+          </div>
+        )}
         {rewardIcon && (
           <div className="modal__reward">
             <img src={`/images/tiles/${encodeURIComponent(rewardIcon)}`} alt="" draggable="false" />
