@@ -17,6 +17,10 @@ function isPortraitViewport() {
   return window.matchMedia('(orientation: portrait)').matches;
 }
 
+function getShuffleLimitForLevel(level, difficulty) {
+  return difficulty.shuffleLimit + (level.shuffleBonus ?? 0);
+}
+
 export default function GameScreen({
   selectedDifficulty,
   soundEnabled,
@@ -38,7 +42,9 @@ export default function GameScreen({
   const [tiles, setTiles] = useState(() => generateBoard(levels[0]));
   const [timeRemaining, setTimeRemaining] = useState(difficulty.timeLimitSeconds);
   const [hintRemaining, setHintRemaining] = useState(difficulty.hintLimit);
-  const [shuffleRemaining, setShuffleRemaining] = useState(difficulty.shuffleLimit);
+  const [shuffleRemaining, setShuffleRemaining] = useState(() => (
+    getShuffleLimitForLevel(levels[0], difficulty)
+  ));
 
   const modalConfig = useMemo(() => {
     if (activeModal === 'time-over') {
@@ -46,12 +52,8 @@ export default function GameScreen({
         title: '时间到啦',
         message: '咪宝又躲起来了……',
         actions: [
-          { label: '继续找', onClick: () => {
-            playSound('click', soundEnabled);
-            setTimeOverAcknowledged(true);
-            setActiveModal(null);
-          } },
           { label: '重新开始', onClick: () => restartLevel() },
+          { label: '回到首页', onClick: () => returnHome() },
         ],
       };
     }
@@ -167,7 +169,7 @@ export default function GameScreen({
     setTiles(generateBoard(nextLevel));
     setTimeRemaining(nextDifficulty.timeLimitSeconds);
     setHintRemaining(nextDifficulty.hintLimit);
-    setShuffleRemaining(nextDifficulty.shuffleLimit);
+    setShuffleRemaining(getShuffleLimitForLevel(nextLevel, nextDifficulty));
     setSelectedTileId(null);
     setHighlightedTileIds([]);
     setInvalidTileIds([]);
@@ -289,12 +291,10 @@ export default function GameScreen({
     const hint = findHint(tiles, level.rows, level.columns);
 
     if (!hint) {
-      if (shuffleRemaining > 0) {
-        setMessage('可以试试洗牌');
-        return;
-      }
-
-      checkNoMove(tiles);
+      setMessage('可以尝试洗牌');
+      setSelectedTileId(null);
+      setHighlightedTileIds([]);
+      setInvalidTileIds([]);
       return;
     }
 

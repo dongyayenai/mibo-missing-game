@@ -129,6 +129,18 @@ export function applyMovementRule(board, movementRule, rows = BOARD_ROWS, column
     return gravityDown(board, rows, columns);
   }
 
+  if (movementRule === 'alignRight') {
+    return alignRight(board, rows, columns);
+  }
+
+  if (movementRule === 'collapseToHorizon') {
+    return collapseToHorizon(board, rows, columns);
+  }
+
+  if (movementRule === 'collapseToCenterLine') {
+    return collapseToCenterLine(board, rows, columns);
+  }
+
   return board.map((tile) => ({ ...tile }));
 }
 
@@ -193,6 +205,73 @@ function gravityDown(board, rows, columns) {
     placeTiles(nextBoard, columnTiles, columnTiles.map((_, offset) => ({
       row: rows - columnTiles.length + offset,
       column,
+    })), columns);
+  }
+
+  return nextBoard;
+}
+
+// Remaining tiles in each row move right.
+// Relative left-to-right order is preserved, leaving empty cells at the left.
+function alignRight(board, rows, columns) {
+  const nextBoard = createEmptyBoard(rows, columns);
+
+  for (let row = 0; row < rows; row += 1) {
+    const rowTiles = collectTiles(board, row, row, 0, columns - 1, columns);
+
+    placeTiles(nextBoard, rowTiles, rowTiles.map((_, offset) => ({
+      row,
+      column: columns - rowTiles.length + offset,
+    })), columns);
+  }
+
+  return nextBoard;
+}
+
+// Top half tiles move down and bottom half tiles move up toward the horizon.
+// Relative top-to-bottom order is preserved within each half.
+function collapseToHorizon(board, rows, columns) {
+  const topEnd = Math.floor(rows / 2) - 1;
+  const bottomStart = topEnd + 1;
+  const nextBoard = createEmptyBoard(rows, columns);
+
+  for (let column = 0; column < columns; column += 1) {
+    const topTiles = collectTiles(board, 0, topEnd, column, column, columns);
+    const bottomTiles = collectTiles(board, bottomStart, rows - 1, column, column, columns);
+
+    placeTiles(nextBoard, topTiles, topTiles.map((_, offset) => ({
+      row: topEnd - topTiles.length + 1 + offset,
+      column,
+    })), columns);
+
+    placeTiles(nextBoard, bottomTiles, bottomTiles.map((_, offset) => ({
+      row: bottomStart + offset,
+      column,
+    })), columns);
+  }
+
+  return nextBoard;
+}
+
+// Left half tiles move right and right half tiles move left toward the center.
+// Relative left-to-right order is preserved within each half.
+function collapseToCenterLine(board, rows, columns) {
+  const leftEnd = Math.floor(columns / 2) - 1;
+  const rightStart = leftEnd + 1;
+  const nextBoard = createEmptyBoard(rows, columns);
+
+  for (let row = 0; row < rows; row += 1) {
+    const leftTiles = collectTiles(board, row, row, 0, leftEnd, columns);
+    const rightTiles = collectTiles(board, row, row, rightStart, columns - 1, columns);
+
+    placeTiles(nextBoard, leftTiles, leftTiles.map((_, offset) => ({
+      row,
+      column: leftEnd - leftTiles.length + 1 + offset,
+    })), columns);
+
+    placeTiles(nextBoard, rightTiles, rightTiles.map((_, offset) => ({
+      row,
+      column: rightStart + offset,
     })), columns);
   }
 
