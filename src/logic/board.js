@@ -5,7 +5,6 @@ export const BOARD_ROWS = 10;
 export const BOARD_TILE_COUNT = BOARD_COLUMNS * BOARD_ROWS;
 
 const TILE_BASE_PATH = '/images/tiles';
-let refillTileId = 0;
 
 export function generateBoard(level) {
   const selectedImages = TILE_IMAGES.slice(0, level.tileSetSize);
@@ -113,35 +112,6 @@ export function shuffleRemainingTiles(tiles) {
   });
 }
 
-export function getTilePoolForLevel(level) {
-  return TILE_IMAGES.slice(0, level.tileSetSize);
-}
-
-export function refillEmptyCells(board, count, tilePool) {
-  const emptyTiles = shuffle(board.filter((tile) => tile.removed));
-  const refillIndexes = new Set(emptyTiles.slice(0, count).map((tile) => tile.index));
-
-  return board.map((tile) => {
-    if (!refillIndexes.has(tile.index)) {
-      return { ...tile };
-    }
-
-    const file = tilePool[Math.floor(Math.random() * tilePool.length)];
-    refillTileId += 1;
-
-    return {
-      id: `refill-${Date.now()}-${refillTileId}`,
-      name: file.replace('.png', ''),
-      file,
-      src: `${TILE_BASE_PATH}/${file}`,
-      removed: false,
-      index: tile.index,
-      row: tile.row,
-      column: tile.column,
-    };
-  });
-}
-
 export function applyMovementRule(board, movementRule, rows = BOARD_ROWS, columns = BOARD_COLUMNS) {
   if (movementRule === 'none') {
     return board.map((tile) => ({ ...tile }));
@@ -169,6 +139,10 @@ export function applyMovementRule(board, movementRule, rows = BOARD_ROWS, column
 
   if (movementRule === 'collapseToCenterLine') {
     return collapseToCenterLine(board, rows, columns);
+  }
+
+  if (movementRule === 'collapseToCenterCross') {
+    return collapseToCenterCross(board, rows, columns);
   }
 
   return board.map((tile) => ({ ...tile }));
@@ -306,6 +280,13 @@ function collapseToCenterLine(board, rows, columns) {
   }
 
   return nextBoard;
+}
+
+// Fully inward movement: columns close toward the middle horizontal line,
+// then rows close toward the middle vertical line. Order stays stable, so this
+// reads as sliding inward instead of reshuffling the board.
+function collapseToCenterCross(board, rows, columns) {
+  return collapseToCenterLine(collapseToHorizon(board, rows, columns), rows, columns);
 }
 
 function collectTiles(board, startRow, endRow, startColumn, endColumn, columns) {

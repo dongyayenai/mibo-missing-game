@@ -6,8 +6,6 @@ import { playSound } from '../logic/audio.js';
 import {
   applyMovementRule,
   generateBoard,
-  getTilePoolForLevel,
-  refillEmptyCells,
   shuffleRemainingTiles,
 } from '../logic/board.js';
 import { DIFFICULTY_PRESETS, formatSeconds } from '../logic/difficulty.js';
@@ -27,18 +25,6 @@ function getShuffleLimitForLevel(level, difficulty) {
   return difficulty.shuffleLimit + (level.shuffleBonus ?? 0);
 }
 
-function shouldShowLevelIntro(level) {
-  return level.id === 9;
-}
-
-function shouldRefillLevel9(clearedTileCount, nextRefillAt) {
-  return clearedTileCount >= nextRefillAt;
-}
-
-function isLevel9(level) {
-  return level.id === 9;
-}
-
 export default function GameScreen({
   selectedDifficulty,
   soundEnabled,
@@ -48,6 +34,7 @@ export default function GameScreen({
   const [activeModal, setActiveModal] = useState(null);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [message, setMessage] = useState('');
+  const [messageVariant, setMessageVariant] = useState('default');
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [highlightedTileIds, setHighlightedTileIds] = useState([]);
   const [invalidTileIds, setInvalidTileIds] = useState([]);
@@ -63,50 +50,15 @@ export default function GameScreen({
   const [shuffleRemaining, setShuffleRemaining] = useState(() => (
     getShuffleLimitForLevel(levels[0], difficulty)
   ));
-  const [clearedTileCount, setClearedTileCount] = useState(0);
-  const [nextRefillAt, setNextRefillAt] = useState(20);
-  const [rescueUsed, setRescueUsed] = useState(false);
-  const [refillToast, setRefillToast] = useState('');
-  const [isLevelActuallyStarted, setIsLevelActuallyStarted] = useState(() => (
-    !shouldShowLevelIntro(levels[0])
-  ));
-  const clearCountTarget = level.targetClearedTiles ?? 0;
-  const progressLabel = level.goalType === 'clearCount'
-    ? `404：${Math.min(clearedTileCount, clearCountTarget)}/${clearCountTarget}`
-    : null;
+  const [isLevelActuallyStarted, setIsLevelActuallyStarted] = useState(true);
+  const progressLabel = null;
 
   const modalConfig = useMemo(() => {
-    if (activeModal === 'level-intro') {
-      return {
-        title: '最终挑战：404！',
-        message: '咪宝会不断换地方躲起来。\n\n每找到 20 个线索，就会出现一批新的图案。\n\n累计找到 404 个格子，就能找到咪宝！',
-        actions: [
-          { label: '开始挑战', onClick: () => {
-            playSound('click', soundEnabled);
-            setIsLevelActuallyStarted(true);
-            setActiveModal(null);
-          } },
-        ],
-      };
-    }
-
     if (activeModal === 'time-over') {
       return {
         title: '时间到啦',
         message: '咪宝又躲起来了……',
         actions: [
-          { label: '重新开始', onClick: () => restartLevel() },
-          { label: '回到首页', onClick: () => returnHome() },
-        ],
-      };
-    }
-
-    if (activeModal === 'rescue') {
-      return {
-        title: '还要继续找咪宝吗？',
-        message: '404 挑战还没结束。\n要不要增加 5 分钟和 5 次洗牌？',
-        actions: [
-          { label: '继续挑战', onClick: () => continueChallenge() },
           { label: '重新开始', onClick: () => restartLevel() },
           { label: '回到首页', onClick: () => returnHome() },
         ],
@@ -125,12 +77,10 @@ export default function GameScreen({
     }
 
     if (activeModal === 'win') {
-      const useLevelWinCopy = level.goalType === 'clearCount';
-
       return {
-        title: useLevelWinCopy || !isFinalLevel ? level.winTitle : '找到咪宝啦！',
-        message: useLevelWinCopy || !isFinalLevel ? level.winMessage : '咪宝终于出来啦！\n今天也辛苦你啦 🐾',
-        rewardIcon: useLevelWinCopy || !isFinalLevel ? level.rewardIcon : '开心咪宝.png',
+        title: !isFinalLevel ? level.winTitle : '找到咪宝啦！',
+        message: !isFinalLevel ? level.winMessage : '咪宝终于出来啦！\n今天也辛苦你啦 🐾',
+        rewardIcon: !isFinalLevel ? level.rewardIcon : '开心咪宝.png',
         variant: isFinalLevel ? 'final-win' : 'win',
         actions: isFinalLevel
           ? [
@@ -206,70 +156,6 @@ export default function GameScreen({
   }, []);
 
   useEffect(() => {
-    if (
-      !isLevel9(level)
-      || !isLevelActuallyStarted
-      || rescueUsed
-      || activeModal
-      || isPaused
-      || isPortrait
-      || timeRemaining > 30
-      || timeRemaining <= 0
-    ) {
-      return;
-    }
-
-    setActiveModal('rescue');
-  }, [
-    activeModal,
-    isLevelActuallyStarted,
-    isPaused,
-    isPortrait,
-    level,
-    rescueUsed,
-    timeRemaining,
-  ]);
-
-  useEffect(() => {
-    if (
-      !isLevel9(level)
-      || !isLevelActuallyStarted
-      || activeModal
-      || isPaused
-      || isPortrait
-      || shuffleRemaining !== 0
-    ) {
-      return;
-    }
-
-    const remainingTiles = tiles.filter((tile) => !tile.removed);
-    const hasMove = remainingTiles.length >= 2
-      && hasAvailableMove(tiles, level.rows, level.columns);
-
-    if (hasMove) {
-      return;
-    }
-
-    if (!rescueUsed) {
-      setActiveModal('rescue');
-      return;
-    }
-
-    playSound('gameOver', soundEnabled);
-    setActiveModal('game-over');
-  }, [
-    activeModal,
-    isLevelActuallyStarted,
-    isPaused,
-    isPortrait,
-    level,
-    rescueUsed,
-    shuffleRemaining,
-    soundEnabled,
-    tiles,
-  ]);
-
-  useEffect(() => {
     if (isLevelActuallyStarted && timeRemaining === 0 && !activeModal && !timeOverAcknowledged) {
       setActiveModal('time-over');
     }
@@ -280,20 +166,13 @@ export default function GameScreen({
       return undefined;
     }
 
-    const timeoutId = window.setTimeout(() => setMessage(''), 2000);
+    const timeoutId = window.setTimeout(() => {
+      setMessage('');
+      setMessageVariant('default');
+    }, messageVariant === 'large' ? 2600 : 2000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [message]);
-
-  useEffect(() => {
-    if (!refillToast) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => setRefillToast(''), 1500);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [refillToast]);
+  }, [message, messageVariant]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -336,18 +215,15 @@ export default function GameScreen({
     setTimeRemaining(nextDifficulty.timeLimitSeconds);
     setHintRemaining(nextDifficulty.hintLimit);
     setShuffleRemaining(getShuffleLimitForLevel(nextLevel, nextDifficulty));
-    setClearedTileCount(0);
-    setNextRefillAt(nextLevel.refillEveryClearedTiles ?? 20);
-    setRescueUsed(false);
-    setRefillToast('');
-    setIsLevelActuallyStarted(!shouldShowLevelIntro(nextLevel));
+    setIsLevelActuallyStarted(true);
     setSelectedTileId(null);
     setHighlightedTileIds([]);
     setInvalidTileIds([]);
     setTimeOverAcknowledged(false);
     setIsPaused(false);
     setMessage('');
-    setActiveModal(shouldShowLevelIntro(nextLevel) ? 'level-intro' : null);
+    setMessageVariant('default');
+    setActiveModal(null);
   }
 
   function restartLevel() {
@@ -372,6 +248,7 @@ export default function GameScreen({
     setHighlightedTileIds([]);
     setInvalidTileIds([]);
     setMessage('');
+    setMessageVariant('default');
     setActiveModal('pause');
   }
 
@@ -379,11 +256,9 @@ export default function GameScreen({
     playSound('click', soundEnabled);
     setIsPaused(false);
     setActiveModal(null);
-    setClearedTileCount(0);
-    setNextRefillAt(20);
-    setRescueUsed(false);
-    setRefillToast('');
     setIsLevelActuallyStarted(true);
+    setMessage('');
+    setMessageVariant('default');
     onBackHome();
   }
 
@@ -400,21 +275,8 @@ export default function GameScreen({
       return;
     }
 
-    if (isLevel9(level) && !rescueUsed) {
-      setActiveModal('rescue');
-      return;
-    }
-
     playSound('gameOver', soundEnabled);
     setActiveModal('game-over');
-  }
-
-  function continueChallenge() {
-    playSound('click', soundEnabled);
-    setRescueUsed(true);
-    setTimeRemaining((currentTime) => currentTime + 300);
-    setShuffleRemaining((currentCount) => currentCount + 5);
-    setActiveModal(null);
   }
 
   function handleTileClick(tile) {
@@ -458,11 +320,6 @@ export default function GameScreen({
         : item
     ));
 
-    if (level.goalType === 'clearCount') {
-      handleClearCountMatch(nextTiles);
-      return;
-    }
-
     const movedTiles = applyMovementRule(nextTiles, level.movementRule, level.rows, level.columns);
 
     setTiles(movedTiles);
@@ -478,43 +335,6 @@ export default function GameScreen({
     checkNoMove(movedTiles);
   }
 
-  function handleClearCountMatch(nextTiles) {
-    const nextClearedTileCount = clearedTileCount + 2;
-
-    setClearedTileCount(nextClearedTileCount);
-    playSound('match', soundEnabled);
-    setSelectedTileId(null);
-    setHighlightedTileIds([]);
-    setInvalidTileIds([]);
-
-    if (nextClearedTileCount >= level.targetClearedTiles) {
-      setTiles(nextTiles);
-      playSound('finalWin', soundEnabled);
-      setActiveModal('win');
-      return;
-    }
-
-    if (shouldRefillLevel9(nextClearedTileCount, nextRefillAt)) {
-      const refilledTiles = refillEmptyCells(
-        nextTiles,
-        level.refillBatchSize,
-        getTilePoolForLevel(level),
-      );
-      const refillStep = level.refillEveryClearedTiles ?? level.refillBatchSize;
-
-      setTiles(refilledTiles);
-      setNextRefillAt(nextRefillAt + refillStep);
-      setTimeRemaining((currentTime) => currentTime + 60);
-      setHintRemaining((currentCount) => currentCount + 2);
-      setRefillToast('新的线索出现了！+1分钟，+2提示');
-      checkNoMove(refilledTiles);
-      return;
-    }
-
-    setTiles(nextTiles);
-    checkNoMove(nextTiles);
-  }
-
   function handleHint() {
     if (!isLevelActuallyStarted || isPaused || isPortrait) {
       return;
@@ -523,13 +343,16 @@ export default function GameScreen({
     if (hintRemaining === 0) {
       playSound('click', soundEnabled);
       setMessage('没有提示次数啦');
+      setMessageVariant('default');
       return;
     }
 
     const hint = findHint(tiles, level.rows, level.columns);
 
     if (!hint) {
-      setMessage('可以尝试洗牌');
+      playSound('wrong', soundEnabled);
+      setMessage('已经没有可消除的了，请点洗牌继续');
+      setMessageVariant('large');
       setSelectedTileId(null);
       setHighlightedTileIds([]);
       setInvalidTileIds([]);
@@ -538,6 +361,9 @@ export default function GameScreen({
 
     playSound('hint', soundEnabled);
     setHintRemaining((currentCount) => currentCount - 1);
+    setSelectedTileId(null);
+    setMessage('');
+    setMessageVariant('default');
     setHighlightedTileIds(hint.map((tile) => tile.id));
     window.setTimeout(() => setHighlightedTileIds([]), 2000);
   }
@@ -550,6 +376,7 @@ export default function GameScreen({
     if (shuffleRemaining === 0) {
       playSound('click', soundEnabled);
       setMessage('没有洗牌次数啦');
+      setMessageVariant('default');
       return;
     }
 
@@ -580,8 +407,17 @@ export default function GameScreen({
           onShuffle={handleShuffle}
           onSettings={pauseGame}
         />
-        {message && <div className="game-message" role="status">{message}</div>}
-        {refillToast && <div className="refill-toast" role="status">{refillToast}</div>}
+        {message && (
+          <div
+            className={[
+              'game-message',
+              messageVariant === 'large' ? 'game-message--large' : '',
+            ].filter(Boolean).join(' ')}
+            role={messageVariant === 'large' ? 'alert' : 'status'}
+          >
+            {message}
+          </div>
+        )}
         <section
           className={['board-stage', isPortrait ? 'board-stage--orientation-blocked' : '']
             .filter(Boolean)
